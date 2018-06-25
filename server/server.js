@@ -14,22 +14,21 @@ app.use(bodyParser.json());
 
 app.post('/todos',(req,res) => {
   // console.log(req.body);
-  var Todo = new Todo({
+  var aTodo = new Todo({
       text: req.body.text
   });
 
-  Todo.save().then((doc) => {
+  aTodo.save().then((doc) => {
       res.send(doc)
     },(e) => {
-  console.log('Unable to save todo',e);
+      res.status(400).send(e);
+  // console.log('Unable to save todo',e);
 });
-
-
-
-
 });
 
 
 app.listen(3000, () => {
   console.log('Started on port 3000');
 });
+
+module.exports = {app};
