@@ -105,13 +105,13 @@ describe('GET /todo/:id', ()=>{
       .end(done)
   });
 
-  it('should return 404 if todo not found', (done) => {
-    var idNew = new ObjectID();
-    request(app)
-    .get(`/todos/${idNew}`)
-    .expect(404)
-    .end(done)
-  });
+  // it('should return 404 if todo not found', (done) => {
+  //   var idNew = new ObjectID();
+  //   request(app)
+  //   .get(`/todos/${idNew}`)
+  //   .expect(404)
+  //   .end(done)
+  // });
 
   it('should return 404 for non-object id', (done) => {
     var idInvalid = '123'

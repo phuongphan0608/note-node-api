@@ -1,8 +1,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const hsb = require('hbs');
+const hbs = require('hbs');
 const {ObjectID} = require('mongodb');
 const _ = require('lodash');
+const jwt = require('jsonwebtoken');
 
 const config = require('./config/config');
 var {mongoose} = require('./db/mongoose');
@@ -116,6 +117,34 @@ app.patch('/todos/:id',(req,res) => {
   })
 
 })
+
+app.post('/users',(req,res) => {
+  var body = _.pick(req.body, ['email', 'password']);
+
+  var user = new User(body);
+
+  // save user with a new generated token
+  var token = user.generateAuthToken();
+
+  user.save().then(() => {
+    return user.generateAuthToken();
+  }).then((token) => {
+    res.header('x-auth', token).send(user);
+  }).catch((e) => {
+    res.status(400).send(e);
+  })
+  // save User without token
+  // user.save().then((user) => {
+  //   if(!user){
+  //     return res.status(404).send();
+  //   }
+  //   res.status(200).send(user);
+  // }).catch((e) => {
+  //   res.status(400).send(e);
+  // })
+
+
+});
 
 app.listen(port, () => {
   console.log(`Started on port ${port}`);
