@@ -47,25 +47,25 @@ describe('POST /todos', () => {
     })
   });
 
-  // it('should not create a  todo', (done) => {
-  //   var text = '';
-  //   request(app)
-  //     .post('/todos')
-  //     .send({text})
-  //     .expect(400)
-  //     .end((err,res) => {
-  //       if (err) {
-  //         return done(err);
-  //       }
-  //       Todo.find().then((todos) => {
-  //         expect(todos.length).toBe(0);
-  //         done();
-  //       }).catch((e) => {
-  //         done(e);
-  //       })
-  //     })
-  //
-  // });
+  it('should not create a  todo', (done) => {
+    var text = '';
+    request(app)
+      .post('/todos')
+      .send({text})
+      .expect(400)
+      .end((err,res) => {
+        if (err) {
+          return done(err);
+        }
+        Todo.find().then((todos) => {
+          expect(todos.length).toBe(3);
+          done();
+        }).catch((e) => {
+          done(e);
+        })
+      })
+
+  });
 
 });
 
@@ -93,13 +93,6 @@ describe('GET /todo/:id', ()=>{
       .end(done)
   });
 
-  // it('should return 404 if todo not found', (done) => {
-  //   var idNew = new ObjectID();
-  //   request(app)
-  //   .get(`/todos/${idNew}`)
-  //   .expect(404)
-  //   .end(done)
-  // });
 
   it('should return 404 for non-object id', (done) => {
     var idInvalid = '123'
@@ -197,20 +190,6 @@ describe('PATCH /todos/:id', () => {
   });
 });
 
-// describe('POST /users', () => {
-//   it('Should post an user', (done) => {
-//     var aUser = users[1];
-//     // var body = _.pick(aUser, ['email', 'password']);
-//     request(app)
-//     .post('/users')
-//     .send(users[1])
-//     .expect(200)
-//     .end(done);
-//   });
-//
-// })
-// ;
-
 describe('GET /users/me', () => {
   it('Should return user if authenticated', (done) => {
     request(app)
@@ -236,11 +215,13 @@ describe('GET /users/me', () => {
   });
 
 });
+
 describe('POST /users', () => {
   it('should create a user', (done) => {
     var email = 'example@example.com';
     var password = '123mnb';
-
+  var aUser = _.pick(users[1], ['email','password']);
+  console.log(aUser);
     request(app)
       .post('/users')
       .send({email,password})
@@ -297,29 +278,73 @@ describe('POST /users', () => {
 });
 
 describe('POST /users/login', () => {
-  it('should login successfully', (done) => {
-    var email = users[0].email;
-    var password = 'userOnePass';
+
+  it('should login user and return auth token', (done) => {
+    var aUser = {email: users[0].email, password: users[0].password};
 
     request(app)
-    .post('/users/login')
-    .send({email, password})
+      .post('/users/login')
+      .send(aUser)
+      .expect(200)
+      .expect((res) => {
+        expect(res.headers['x-auth']).toBeTruthy();
+      })
+      .end((err,res) => {
+        if (err) {
+          return done(err);
+        }
+        User.findById(users[0]._id).then((user) => {
+          expect(user.tokens[0]).toMatchObject({
+            access: 'auth',
+            token: res.headers['x-auth']
+          });
+          done();
+        }).catch((err) => {
+          return done(err);
+        })
+      });
+  });
+
+  it('should reject invalid user', (done) => {
+    var aUser = {email: users[1].email, password: users[1].password + '1'};
+
+    request(app)
+      .post('/users/login')
+      .send(aUser)
+      .expect(400)
+      .expect((res) => {
+        expect(res.headers['x-auth']).toBeFalsy();
+      })
+      // .end(done);
+      .end((err,res) => {
+        if (err) {
+          return done(err);
+        }
+        User.findById(users[1]._id).then((user) => {
+          expect(user.tokens.length).toBe(0);
+          done();
+        }).catch((err) => {
+          return done(err);
+        })
+      });
+  });
+});
+
+describe('DELETE /users/me/token', () => {
+  it('should delete the token', (done) => {
+    var token = users[0].tokens[0].token;
+    request(app)
+    .delete('/users/me/token')
+    .set('x-auth', token)
     .expect(200)
-    .expect((res) => {
-      expect(res.body.email).toBe(email);
-      // expect(res.body._id).toBe()
-    })
-    .end((err) => {
+    .end((err,res) => {
       if (err) {
         return done(err);
       }
-
-      User.findOne({email}).then((user) => {
-        var compare = bcrypt.compare(user.password,password);//.then((result) => {return result});
-        expect(compare).toBe(true);
+      User.findOne({email: users[0].email}).then((user) => {
+        expect(user.tokens.length).toBe(0);
         done();
-      })
-    })
-
+      }).catch((e) => done(e))
+    });
   });
 });

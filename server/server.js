@@ -132,23 +132,7 @@ app.post('/users',(req,res) => {
   }).catch((e) => {
     res.status(400).send(e);
   })
-  // save User without token
-  // user.save().then((user) => {
-  //   if(!user){
-  //     return res.status(404).send();
-  //   }
-  //   res.status(200).send(user);
-  // }).catch((e) => {
-  //   res.status(400).send(e);
-  // })
-
-
 });
-
-app.get('/users/me', authenticate, (req,res) => {
-    res.send(req.user);
-})
-
 
 app.post('/users/login', (req, res) => {
   // a user;
@@ -158,42 +142,24 @@ app.post('/users/login', (req, res) => {
   User.findByCredentials(body.email,body.password).then((user) => {
     // console.log(user);
     return user.generateAuthToken().then((token) => {
-      // if(user.tokens[0].token){
-      //   user.tokens[0].token = token;
-      // }
-      // console.log(token);
       res.header('x-auth', token).send(user);
     });
   }).catch((e) => {
     res.status(400).send(e);
   })
-
-
-
-  // User.findOne({email: body.email}).then((user) => {
-  //   if(!user){
-  //     res.status(404).send();
-  //   }
-  //   // encrypted user.password compare to inputted password
-  //
-  //   bcrypt.compare(body.password, user.password, (err) => {
-  //     if (err) {
-  //       res.status(401).send('Not authenticated')
-  //     }
-  //     res.status(200).send(user);
-  //   })
-  //
-  // }).catch((err) => {
-  //   res.status(400).send(err);
-  // })
-
-  // compare to the user in db then return 200 if equal
-
-
-
 });
 
-app.post('/users/logout')
+app.get('/users/me', authenticate, (req,res) => {
+    res.send(req.user);
+});
+
+app.delete('/users/me/token', authenticate, (req,res) => {
+  req.user.removeToken(req.token).then(() => {
+    res.status(200).send()
+  },() => {
+    res.status(400).send();
+  });
+});
 
 app.listen(port, () => {
   console.log(`Started on port ${port}`);
