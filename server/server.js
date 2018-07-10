@@ -4,15 +4,17 @@ const hbs = require('hbs');
 const {ObjectID} = require('mongodb');
 const _ = require('lodash');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const config = require('./config/config');
 var {mongoose} = require('./db/mongoose');
 var {Todo} = require('./models/todo');
 var {User} =require('./models/user');
+var {authenticate} =require('./middleware/authenticate');
 
 var app = express();
 app.set('view engine','hbs');
-
+// console.log(process.env);
 const port = process.env.PORT ;
 
 //Parse incoming request bodies in a middleware before your handlers, available under the req.body property
@@ -123,9 +125,6 @@ app.post('/users',(req,res) => {
 
   var user = new User(body);
 
-  // save user with a new generated token
-  var token = user.generateAuthToken();
-
   user.save().then(() => {
     return user.generateAuthToken();
   }).then((token) => {
@@ -145,6 +144,56 @@ app.post('/users',(req,res) => {
 
 
 });
+
+app.get('/users/me', authenticate, (req,res) => {
+    res.send(req.user);
+})
+
+
+app.post('/users/login', (req, res) => {
+  // a user;
+
+  var body = _.pick(req.body, ['email','password']);
+
+  User.findByCredentials(body.email,body.password).then((user) => {
+    // console.log(user);
+    return user.generateAuthToken().then((token) => {
+      // if(user.tokens[0].token){
+      //   user.tokens[0].token = token;
+      // }
+      // console.log(token);
+      res.header('x-auth', token).send(user);
+    });
+  }).catch((e) => {
+    res.status(400).send(e);
+  })
+
+
+
+  // User.findOne({email: body.email}).then((user) => {
+  //   if(!user){
+  //     res.status(404).send();
+  //   }
+  //   // encrypted user.password compare to inputted password
+  //
+  //   bcrypt.compare(body.password, user.password, (err) => {
+  //     if (err) {
+  //       res.status(401).send('Not authenticated')
+  //     }
+  //     res.status(200).send(user);
+  //   })
+  //
+  // }).catch((err) => {
+  //   res.status(400).send(err);
+  // })
+
+  // compare to the user in db then return 200 if equal
+
+
+
+});
+
+app.post('/users/logout')
 
 app.listen(port, () => {
   console.log(`Started on port ${port}`);

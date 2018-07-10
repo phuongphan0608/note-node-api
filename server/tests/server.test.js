@@ -2,21 +2,12 @@ const expect = require('expect');
 const request = require('supertest');
 const {ObjectID} = require('mongodb');
 const _ = require('lodash');
-
+const bcrypt = require('bcryptjs');
 const {app} = require('./../server');
 const {Todo} = require('./../models/todo');
+const {User} = require('./../models/user');
+const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
 
-// Create test data
-const todos = [{
-  _id: new ObjectID(),
-  text: 'First todo object'
-},{
-  _id: new ObjectID(),
-  text: 'Second todo object'
-},{
-  _id: new ObjectID(),
-  text: 'Third todo object'
-}];
 
 // set up database, make sure database is empty
 // beforeEach((done) =>{
@@ -25,15 +16,12 @@ const todos = [{
 //     return Todo.insertMany(todos);
 //   }).then(() => done());
 // });
-
-beforeEach((done) => {
-  Todo.remove({}).then(() => {
-    return Todo.insertMany(todos);
-  }).then(() => done());
-});
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 // done keyword = to test async test.
 // Test a success post Todo
+
 describe('POST /todos', () => {
   it('should create a new todo', (done) => {
     var text = 'Text created';
@@ -206,5 +194,132 @@ describe('PATCH /todos/:id', () => {
         expect(res.body.todo.completedAt).toBe(null);
       })
       .end(done)
+  });
+});
+
+// describe('POST /users', () => {
+//   it('Should post an user', (done) => {
+//     var aUser = users[1];
+//     // var body = _.pick(aUser, ['email', 'password']);
+//     request(app)
+//     .post('/users')
+//     .send(users[1])
+//     .expect(200)
+//     .end(done);
+//   });
+//
+// })
+// ;
+
+describe('GET /users/me', () => {
+  it('Should return user if authenticated', (done) => {
+    request(app)
+    .get('/users/me')
+    .set('x-auth', users[0].tokens[0].token)
+    .expect(200)
+    .expect((res) => {
+      expect(res.body._id).toBe(users[0]._id.toHexString());
+      expect(res.body.email).toBe(users[0].email);
+    })
+    .end(done)
+  });
+
+  it('Should return 401 if not authenticated', (done) => {
+    request(app)
+    .get('/users/me')
+    // .set ('x-auth', users[0].tokens[0].token)
+    .expect(401)
+    .expect((res) => {
+      expect(res.body).toEqual({});
+    })
+    .end(done);
+  });
+
+});
+describe('POST /users', () => {
+  it('should create a user', (done) => {
+    var email = 'example@example.com';
+    var password = '123mnb';
+
+    request(app)
+      .post('/users')
+      .send({email,password})
+      .expect(200)
+      .expect((res) => {
+        // check the response
+        expect(res.headers['x-auth']).toBeTruthy();
+        expect(res.body.email).toBe(email);
+        expect(res.body._id).toBeTruthy();
+      })
+      .end((err) => {
+        // check the database
+        if (err) {
+          return done(err);
+        }
+
+        User.findOne({email}).then((user) => {
+          expect(user).toBeTruthy();
+          expect(user.password).not.toBe(password);
+          done();
+        });
+
+      });
+  });
+
+  it('should return validation errors if request invalid', (done) => {
+      var email = 'Andrew@gmail.com';
+      var password = 'password';
+
+      request(app)
+        .post('/users')
+        .set({email,password})
+        .expect(400)
+        .expect((res) => {
+          expect(res.body._message).toBe('User validation failed');
+          expect(res.body.message).toBe(`User validation failed: password: Path \`${password}\` is required., email: User email required`);
+        })
+        .end(done);
+  });
+
+  it('should not create user if email in use', (done) => {
+    var email = 'phuongphan0608@gmail.com';
+    var password = 'passwordnmb';
+
+    request(app)
+      .post('/users')
+      .set({email,password})
+      .expect(400)
+      .expect((res) => {
+        expect(res.body._message).toBe('User validation failed')
+      })
+      .end(done)
+  });
+});
+
+describe('POST /users/login', () => {
+  it('should login successfully', (done) => {
+    var email = users[0].email;
+    var password = 'userOnePass';
+
+    request(app)
+    .post('/users/login')
+    .send({email, password})
+    .expect(200)
+    .expect((res) => {
+      expect(res.body.email).toBe(email);
+      // expect(res.body._id).toBe()
+    })
+    .end((err) => {
+      if (err) {
+        return done(err);
+      }
+
+      User.findOne({email}).then((user) => {
+        var compare = bcrypt.compare(user.password,password);//.then((result) => {return result});
+        expect(compare).toBe(true);
+        done();
+      })
+    })
+
   });
 });
